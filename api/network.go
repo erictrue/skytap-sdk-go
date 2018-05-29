@@ -16,6 +16,7 @@ package api
 
 import (
 	"fmt"
+
 	"github.com/dghubble/sling"
 
 	log "github.com/Sirupsen/logrus"
@@ -147,6 +148,50 @@ type ConnectVpnBody struct {
 	Connected bool `json:"connected"`
 }
 
+// CreateAutomaticNetwork - create a new network in an Environment
+func CreateAutomaticNetwork(
+	client SkytapClient,
+	envId string,
+	name string,
+	subnet string,
+	domain string) (*Network, error) {
+
+	log.WithFields(log.Fields{"envId": envId, "network_name": name}).Info("Adding network to environment")
+
+	createAutoNetwork := func(s *sling.Sling) *sling.Sling {
+		network := struct {
+			Name        string `json:"name"`
+			NetworkType string `json:"network_type"`
+			Subnet      string `json:"subnet"`
+			Domain      string `json:"domain"`
+		}{
+			Name:        name,
+			NetworkType: "automatic",
+			Subnet:      subnet,
+			Domain:      domain,
+		}
+
+		return s.Post(EnvironmentPath + "/" + envId + "/" + NetworkPath + ".json").BodyJSON(network)
+	}
+
+	network := new(Network)
+	_, err := RunSkytapRequest(client, false, network, createAutoNetwork)
+
+	return network, err
+}
+
+// DeleteNetwork - delete a network from an environment
+func DeleteNetwork(client SkytapClient, envId string, netId string) error {
+	log.WithFields(log.Fields{"envId": envId, "netId": netId}).Info("Deleting network in environment")
+
+	deleteNet := func(s *sling.Sling) *sling.Sling {
+		return s.Delete(EnvironmentPath + "/" + envId + NetworkPath + "/" + netId)
+	}
+
+	_, err := RunSkytapRequest(client, false, nil, deleteNet)
+	return err
+}
+
 /*
  Path for all VPNs in a network and environment.
 */
@@ -231,7 +276,7 @@ func (n *Network) DetachFromVpn(client SkytapClient, envId string, vpnId string)
 	return err
 }
 
-func vpnIdPath(vpnId string) string   { return VpnPath + "/" + vpnId + ".json" }
+func vpnIdPath(vpnId string) string { return VpnPath + "/" + vpnId + ".json" }
 
 /*
  Return an existing VPN by id.
