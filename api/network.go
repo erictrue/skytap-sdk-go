@@ -185,7 +185,7 @@ func DeleteNetwork(client SkytapClient, envId string, netId string) error {
 	log.WithFields(log.Fields{"envId": envId, "netId": netId}).Info("Deleting network in environment")
 
 	deleteNet := func(s *sling.Sling) *sling.Sling {
-		return s.Delete(EnvironmentPath + "/" + envId + NetworkPath + "/" + netId)
+		return s.Delete(fmt.Sprintf("%s/%s/%s/%s", EnvironmentPath, envId, NetworkPath, netId))
 	}
 
 	_, err := RunSkytapRequest(client, false, nil, deleteNet)
