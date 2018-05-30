@@ -54,14 +54,15 @@ type Network struct {
  Network interface inside a VM.
 */
 type NetworkInterface struct {
-	Id              string       `json:"id"`
-	Ip              string       `json:"ip"`
-	PublicIpsCount  int          `json:"public_ips_count"`
-	Hostname        string       `json:"hostname"`
-	PublicIps       []PublicIp   `json:"public_ips"`
-	NatAddresses    NatAddresses `json:"nat_addresses"`
-	Status          string       `json:"status"`
-	ExternalAddress string       `json:"external_address"`
+	Id              string       `json:"id,omitifempty"`
+	Ip              string       `json:"ip,omitifempty"`
+	PublicIpsCount  int          `json:"public_ips_count,omitifempty"`
+	Hostname        string       `json:"hostname,omitifempty"`
+	PublicIps       []PublicIp   `json:"public_ips,omitifempty"`
+	NatAddresses    NatAddresses `json:"nat_addresses,omitifempty"`
+	Status          string       `json:"status,omitifempty"`
+	ExternalAddress string       `json:"external_address,omitifempty"`
+	NicType         string       `json:"nic_type,omitifempty"`
 }
 
 /*

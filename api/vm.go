@@ -16,9 +16,10 @@ package api
 
 import (
 	"fmt"
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/dghubble/sling"
-	"strings"
 )
 
 const (
@@ -37,6 +38,7 @@ type VirtualMachine struct {
 	EnvironmentUrl string              `json:"configuration_url,omitempty"`
 	Interfaces     []*NetworkInterface `json:"interfaces`
 	Hardware       Hardware            `json:"hardware"`
+	CreatedAt      string              `json:"created_at"`
 }
 
 type VmCredential struct {
@@ -145,7 +147,7 @@ func (vm *VirtualMachine) Start(client SkytapClient) (*VirtualMachine, error) {
 func (vm *VirtualMachine) Stop(client SkytapClient) (*VirtualMachine, error) {
 	log.WithFields(log.Fields{"vmId": vm.Id}).Info("Stopping VM")
 
-  /*
+	/*
 	 Need to check current machine state as transitioning from suspended to stopped is not valid.
 	*/
 	checkVm, err := GetVirtualMachine(client, vm.Id)
@@ -157,18 +159,18 @@ func (vm *VirtualMachine) Stop(client SkytapClient) (*VirtualMachine, error) {
 	}
 
 	/*
-   There are cases where the call will succeed but the VM cannot be transitioned
-	 to stopped. Generally this is a case where the VM was started and immediately
-	 stopped. In this case the VMware tools didn't have an opportunity to full load.
-	 The VMware tools are required to send a graceful shutdown to the VM.
+		   There are cases where the call will succeed but the VM cannot be transitioned
+			 to stopped. Generally this is a case where the VM was started and immediately
+			 stopped. In this case the VMware tools didn't have an opportunity to full load.
+			 The VMware tools are required to send a graceful shutdown to the VM.
 	*/
 	newVm, err := vm.ChangeRunstate(client, RunStateStop, RunStateStop, RunStateStart)
 	if err != nil {
 		return newVm, err
 	}
-  if newVm.Error != false {
-	  return nil, fmt.Errorf("Error stopping VM %s, error: %+v", vm.Id, newVm.Error)
-  }
+	if newVm.Error != false {
+		return nil, fmt.Errorf("Error stopping VM %s, error: %+v", vm.Id, newVm.Error)
+	}
 	return newVm, err
 
 }
@@ -212,6 +214,46 @@ func (vm *VirtualMachine) GetCredentials(client SkytapClient) ([]VmCredential, e
 
 	_, err := RunSkytapRequest(client, false, credentials, credentialReq)
 	return *credentials, err
+}
+
+func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, host, nic_type string, restartVm bool) (*NetworkInterface, error) {
+	if vm.Runstate != RunStateStop {
+		_, err := vm.Stop(client)
+		if err != nil {
+			return nil, err
+		}
+	}
+	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "nic_type": nic_type, "ip": ip, "hostname": host}).Infof("Adding interface")
+
+	intr := &NetworkInterface{
+		// Ip:       ip,
+		// Hostname: host,
+		NicType: nic_type,
+	}
+
+	addReq := func(s *sling.Sling) *sling.Sling {
+		path := fmt.Sprintf("%s/%s/%s/%s/%s.json", EnvironmentPath, envId, VmPath, vm.Id, InterfacePath)
+		return s.Post(path).BodyJSON(intr)
+	}
+	vm.WaitUntilInState(client, []string{RunStateStop}, true)
+	_, err := RunSkytapRequest(client, true, intr, addReq)
+
+	if restartVm {
+		_, err = vm.Start(client)
+	}
+
+	return intr, err
+}
+
+func (vm *VirtualMachine) RemoveNetworkInterface(client SkytapClient, envId, vmId, interfaceId string) error {
+	log.WithFields(log.Fields{"envId": envId, "vmId": vmId, "interfaceId": interfaceId}).Infof("Removing interface")
+	delReq := func(s *sling.Sling) *sling.Sling {
+		return s.Delete(networkInterfacePath(envId, vm.Id, interfaceId))
+	}
+
+	_, err := RunSkytapRequest(client, false, nil, delReq)
+
+	return err
 }
 
 func (vm *VirtualMachine) RenameNetworkInterface(client SkytapClient, envId string, interfaceId string, name string) (*NetworkInterface, error) {
