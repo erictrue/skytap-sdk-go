@@ -217,32 +217,52 @@ func (vm *VirtualMachine) GetCredentials(client SkytapClient) ([]VmCredential, e
 }
 
 func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, host, nic_type string, restartVm bool) (*NetworkInterface, error) {
+	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "nic_type": nic_type, "ip": ip, "hostname": host}).Infof("Adding interface")
 	if vm.Runstate != RunStateStop {
 		_, err := vm.Stop(client)
 		if err != nil {
 			return nil, err
 		}
+		vm.WaitUntilInState(client, []string{RunStateStop}, false)
 	}
-	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "nic_type": nic_type, "ip": ip, "hostname": host}).Infof("Adding interface")
 
 	intr := &NetworkInterface{
 		// Ip:       ip,
 		// Hostname: host,
 		NicType: nic_type,
+		// NatAddresses: nil,
 	}
 
 	addReq := func(s *sling.Sling) *sling.Sling {
 		path := fmt.Sprintf("%s/%s/%s/%s/%s.json", EnvironmentPath, envId, VmPath, vm.Id, InterfacePath)
 		return s.Post(path).BodyJSON(intr)
 	}
-	vm.WaitUntilInState(client, []string{RunStateStop}, true)
+
 	_, err := RunSkytapRequest(client, true, intr, addReq)
+	log.WithField("err", err).Info("Finished Add Interface Request")
+	if err != nil {
+		return nil, err
+	}
 
 	if restartVm {
 		_, err = vm.Start(client)
 	}
 
 	return intr, err
+}
+
+func (vm *VirtualMachine) UpdateNetworkInterface(client SkytapClient, network_interface *NetworkInterface, envId, vmId, interfaceId string) error {
+	log.WithFields(log.Fields{"envId": envId, "vmId": vmId, "interfaceId": interfaceId}).Infof("Updating interface")
+
+	updateReq := func(s *sling.Sling) *sling.Sling {
+		path := fmt.Sprintf("%s/%s/%s/%s/%s/%s.json", EnvironmentPath, envId, VmPath, vm.Id, InterfacePath, interfaceId)
+		log.WithField("path", path).Info("")
+		return s.Put(path).BodyJSON(network_interface)
+	}
+	_, err := RunSkytapRequest(client, true, network_interface, updateReq)
+	log.WithField("err", err).Info("Finished Update Interface Request")
+
+	return err
 }
 
 func (vm *VirtualMachine) RemoveNetworkInterface(client SkytapClient, envId, vmId, interfaceId string) error {

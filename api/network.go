@@ -54,23 +54,24 @@ type Network struct {
  Network interface inside a VM.
 */
 type NetworkInterface struct {
-	Id              string       `json:"id,omitifempty"`
-	Ip              string       `json:"ip,omitifempty"`
-	PublicIpsCount  int          `json:"public_ips_count,omitifempty"`
-	Hostname        string       `json:"hostname,omitifempty"`
-	PublicIps       []PublicIp   `json:"public_ips,omitifempty"`
-	NatAddresses    NatAddresses `json:"nat_addresses,omitifempty"`
-	Status          string       `json:"status,omitifempty"`
-	ExternalAddress string       `json:"external_address,omitifempty"`
-	NicType         string       `json:"nic_type,omitifempty"`
+	Id              string        `json:"id,omitempty"`
+	Ip              string        `json:"ip,omitempty"`
+	PublicIpsCount  int           `json:"public_ips_count,omitempty"`
+	Hostname        string        `json:"hostname,omitempty"`
+	PublicIps       []PublicIp    `json:"public_ips,omitempty"`
+	NatAddresses    *NatAddresses `json:"nat_addresses,omitempty"`
+	Status          string        `json:"status,omitempty"`
+	ExternalAddress string        `json:"external_address,omitempty"`
+	NicType         string        `json:"nic_type,omitempty"`
+	NetworkId       string        `json:"network_id,omitempty"`
 }
 
 /*
  Nat addresses stored inside network interface.
 */
 type NatAddresses struct {
-	VpnNatAddresses     []VpnNatAddress     `json:"vpn_nat_addresses"`
-	NetworkNatAddresses []NetworkNatAddress `json:"network_nat_addresses"`
+	VpnNatAddresses     []VpnNatAddress     `json:"vpn_nat_addresses,omitempty"`
+	NetworkNatAddresses []NetworkNatAddress `json:"network_nat_addresses,omitempty	"`
 }
 
 /*
