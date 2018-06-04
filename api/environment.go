@@ -16,6 +16,7 @@ package api
 
 import (
 	"errors"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/dghubble/sling"
 )
@@ -149,7 +150,7 @@ func (e *Environment) MergeVirtualMachine(client SkytapClient, mergeBody interfa
 	_, err := RunSkytapRequest(client, false, newEnv, merge)
 	if err != nil {
 		log.Errorf("Unable to add VM to environment (%s), requestBody: %+v, cause: %s", e.Id, mergeBody, err)
-		return nil, err
+		return e, err
 	}
 	return newEnv, nil
 }
