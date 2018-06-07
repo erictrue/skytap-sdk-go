@@ -216,6 +216,43 @@ func (vm *VirtualMachine) GetCredentials(client SkytapClient) ([]VmCredential, e
 	return *credentials, err
 }
 
+func (vm *VirtualMachine) AddDisk(client SkytapClient, envId string, diskSize int, restartVm bool) (*VirtualMachine, error) {
+
+	if vm.Runstate != RunStateStop {
+		vm, err := vm.Stop(client)
+		if err != nil {
+			return vm, err
+		}
+	}
+
+	hw := map[string]interface{}{
+		"hardware": map[string]interface{}{
+			"disks": map[string]interface{}{
+				"new": []int{diskSize},
+			},
+		},
+	}
+
+	hardwareReq := func(s *sling.Sling) *sling.Sling {
+		return s.Put(vmUpdatePath(vm.Id)).BodyJSON(hw)
+	}
+
+	newVm := &VirtualMachine{}
+
+	log.WithFields(log.Fields{"vmId": vm.Id, "diskSize": diskSize}).Infof("Adding disk")
+	_, err := RunSkytapRequest(client, false, newVm, hardwareReq)
+
+	if err != nil {
+		return newVm, err
+	}
+	if restartVm {
+		newVm, err = newVm.Start(client)
+	}
+
+	return newVm, err
+
+}
+
 func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, host, nic_type string, restartVm bool) (*NetworkInterface, error) {
 	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "nic_type": nic_type, "ip": ip, "hostname": host}).Infof("Adding interface")
 	if vm.Runstate != RunStateStop {
