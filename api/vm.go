@@ -152,10 +152,10 @@ func (vm *VirtualMachine) Stop(client SkytapClient) (*VirtualMachine, error) {
 	*/
 	checkVm, err := GetVirtualMachine(client, vm.Id)
 	if err != nil {
-		return nil, err
+		return vm, err
 	}
 	if checkVm.Runstate == RunStatePause {
-		return nil, fmt.Errorf("Unable to stop a suspended VM.")
+		return vm, fmt.Errorf("Unable to stop a suspended VM.")
 	}
 
 	/*
@@ -288,8 +288,8 @@ func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, ho
 	return intr, err
 }
 
-func (vm *VirtualMachine) UpdateNetworkInterface(client SkytapClient, network_interface *NetworkInterface, envId, vmId, interfaceId string) error {
-	log.WithFields(log.Fields{"envId": envId, "vmId": vmId, "interfaceId": interfaceId}).Infof("Updating interface")
+func (vm *VirtualMachine) UpdateNetworkInterface(client SkytapClient, network_interface *NetworkInterface, envId, interfaceId string) error {
+	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "interfaceId": interfaceId}).Infof("Updating interface")
 
 	updateReq := func(s *sling.Sling) *sling.Sling {
 		path := fmt.Sprintf("%s/%s/%s/%s/%s/%s.json", EnvironmentPath, envId, VmPath, vm.Id, InterfacePath, interfaceId)

@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	NetworkPath   = "networks"
-	InterfacePath = "interfaces"
-	VpnPath       = "vpns"
+	NetworkPath          = "networks"
+	InterfacePath        = "interfaces"
+	VpnPath              = "vpns"
+	PublishedServicePath = "services"
 )
 
 /*
@@ -54,16 +55,17 @@ type Network struct {
  Network interface inside a VM.
 */
 type NetworkInterface struct {
-	Id              string        `json:"id,omitempty"`
-	Ip              string        `json:"ip,omitempty"`
-	PublicIpsCount  int           `json:"public_ips_count,omitempty"`
-	Hostname        string        `json:"hostname,omitempty"`
-	PublicIps       []PublicIp    `json:"public_ips,omitempty"`
-	NatAddresses    *NatAddresses `json:"nat_addresses,omitempty"`
-	Status          string        `json:"status,omitempty"`
-	ExternalAddress string        `json:"external_address,omitempty"`
-	NicType         string        `json:"nic_type,omitempty"`
-	NetworkId       string        `json:"network_id,omitempty"`
+	Id                string             `json:"id,omitempty"`
+	Ip                string             `json:"ip,omitempty"`
+	PublicIpsCount    int                `json:"public_ips_count,omitempty"`
+	Hostname          string             `json:"hostname,omitempty"`
+	PublicIps         []PublicIp         `json:"public_ips,omitempty"`
+	NatAddresses      *NatAddresses      `json:"nat_addresses,omitempty"`
+	Status            string             `json:"status,omitempty"`
+	ExternalAddress   string             `json:"external_address,omitempty"`
+	NicType           string             `json:"nic_type,omitempty"`
+	NetworkId         string             `json:"network_id,omitempty"`
+	PublishedServices []PublishedService `json:"services,omitempty"`
 }
 
 /*
@@ -148,6 +150,13 @@ type AttachVpnResult struct {
 */
 type ConnectVpnBody struct {
 	Connected bool `json:"connected"`
+}
+
+type PublishedService struct {
+	Id           string `json:"id,omitempty"`
+	InternalPort int    `json:"internal_port,omitempty"`
+	ExternalIp   string `json:"external_ip,omitempty"`
+	ExternalPort int    `json:"external_port,omitempty"`
 }
 
 // CreateAutomaticNetwork - create a new network in an Environment
@@ -292,4 +301,21 @@ func GetVpn(client SkytapClient, vpnId string) (*Vpn, error) {
 
 	_, err := RunSkytapRequest(client, true, vpn, getVpn)
 	return vpn, err
+}
+
+func (nic *NetworkInterface) AddPublishedService(client SkytapClient, service *PublishedService, envId, vmId string) error {
+
+	log.WithFields(log.Fields{"envId": envId, "vmId": vmId, "interfaceId": nic.Id}).Infof("Adding service")
+
+	addReq := func(s *sling.Sling) *sling.Sling {
+		path := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s.json", EnvironmentPath, envId, VmPath, vmId, InterfacePath, nic.Id, PublishedServicePath)
+		return s.Post(path).BodyJSON(service)
+	}
+
+	_, err := RunSkytapRequest(client, true, service, addReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
