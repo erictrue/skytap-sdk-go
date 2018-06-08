@@ -16,6 +16,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/dghubble/sling"
@@ -113,6 +114,20 @@ func (e *Environment) AddVirtualMachine(client SkytapClient, vmId string) (*Envi
 	}
 
 	return e, errors.New("Unable to determine source of VM, no environment or template url found")
+}
+
+func (e *Environment) RenameVirtualMachine(client SkytapClient, vmId string, newName string) (*VirtualMachine, error) {
+	log.WithFields(log.Fields{"envId": e.Id, "vmId": vmId, "name": newName}).Info("Renaming VM")
+
+	vm := &VirtualMachine{Name: newName}
+
+	renameVM := func(s *sling.Sling) *sling.Sling {
+		path := fmt.Sprintf("%s/%s/%s/%s", EnvironmentPath, e.Id, VmPath, vmId)
+		return s.Put(path).QueryStruct(*vm)
+	}
+
+	_, err := RunSkytapRequest(client, true, vm, renameVM)
+	return vm, err
 }
 
 func (e *Environment) RunstateStr() string { return e.Runstate }

@@ -30,15 +30,15 @@ const (
  Skytap VM resource.
 */
 type VirtualMachine struct {
-	Id             string              `json:"id"`
-	Name           string              `json:"name"`
-	Runstate       string              `json:"runstate"`
-	Error          interface{}         `json:"error"`
+	Id             string              `json:"id,omitempty"`
+	Name           string              `json:"name,omitempty" url:"name"`
+	Runstate       string              `json:"runstate,omitempty"`
+	Error          interface{}         `json:"error,omitempty"`
 	TemplateUrl    string              `json:"template_url,omitempty"`
 	EnvironmentUrl string              `json:"configuration_url,omitempty"`
-	Interfaces     []*NetworkInterface `json:"interfaces`
-	Hardware       Hardware            `json:"hardware"`
-	CreatedAt      string              `json:"created_at"`
+	Interfaces     []*NetworkInterface `json:"interfaces,omitempty"`
+	Hardware       Hardware            `json:"hardware,omitempty"`
+	CreatedAt      string              `json:"created_at,omitempty"`
 }
 
 type VmCredential struct {
