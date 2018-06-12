@@ -191,6 +191,35 @@ func CreateAutomaticNetwork(
 	return network, err
 }
 
+func CreateManualNetwork(
+	client SkytapClient,
+	envId string,
+	name string,
+	subnet string,
+	gateway string) (*Network, error) {
+	log.WithFields(log.Fields{"envId": envId, "network_name": name}).Info("Adding network to environment")
+
+	createAutoNetwork := func(s *sling.Sling) *sling.Sling {
+		network := struct {
+			Name        string `json:"name"`
+			NetworkType string `json:"network_type"`
+			Subnet      string `json:"subnet"`
+			Gateway     string `json:"gateway"`
+		}{
+			Name:        name,
+			NetworkType: "manual",
+			Subnet:      subnet,
+			Gateway:     gateway,
+		}
+		return s.Post(EnvironmentPath + "/" + envId + "/" + NetworkPath + ".json").BodyJSON(network)
+
+	}
+	network := new(Network)
+	_, err := RunSkytapRequest(client, false, network, createAutoNetwork)
+	return network, err
+
+}
+
 // DeleteNetwork - delete a network from an environment
 func DeleteNetwork(client SkytapClient, envId string, netId string) error {
 	log.WithFields(log.Fields{"envId": envId, "netId": netId}).Info("Deleting network in environment")
@@ -316,6 +345,8 @@ func (nic *NetworkInterface) AddPublishedService(client SkytapClient, service *P
 	if err != nil {
 		return err
 	}
+
+	log.WithField("publishedService", service).Info("Service Added")
 
 	return nil
 }
