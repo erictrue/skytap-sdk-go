@@ -51,9 +51,18 @@ type NameUpdate struct {
 }
 
 type Hardware struct {
-	Cpus          *int `json:"cpus,omitempty"`
-	CpusPerSocket *int `json:"cpus_per_socket,omitempty"`
-	Ram           *int `json:"ram,omitempty"`
+	Cpus          *int   `json:"cpus,omitempty"`
+	CpusPerSocket *int   `json:"cpus_per_socket,omitempty"`
+	Ram           *int   `json:"ram,omitempty"`
+	Disks         []Disk `json:"disks,omitempty"`
+}
+
+type Disk struct {
+	Id         string `json:"id"`
+	Size       *int   `json:"size"`
+	Type       string `json:"type"`
+	Controller string `json:"controller"`
+	Lun        string `json:"lun"`
 }
 
 type HardwareUpdate struct {
@@ -216,6 +225,9 @@ func (vm *VirtualMachine) GetCredentials(client SkytapClient) ([]VmCredential, e
 	return *credentials, err
 }
 
+/*
+ Add a Disk of a specified size to VM
+*/
 func (vm *VirtualMachine) AddDisk(client SkytapClient, envId string, diskSize int, restartVm bool) (*VirtualMachine, error) {
 
 	if vm.Runstate != RunStateStop {
@@ -253,6 +265,53 @@ func (vm *VirtualMachine) AddDisk(client SkytapClient, envId string, diskSize in
 
 }
 
+/*
+ Resize Disk with specified ID
+*/
+func (vm *VirtualMachine) ResizeDisk(client SkytapClient, envId string, diskId string, diskSize int, restartVm bool) (*VirtualMachine, error) {
+	if vm.Runstate != RunStateStop {
+		vm, err := vm.Stop(client)
+		if err != nil {
+			return vm, err
+		}
+	}
+
+	hw := map[string]interface{}{
+		"hardware": map[string]interface{}{
+			"disks": map[string]interface{}{
+				"existing": map[string]interface{}{
+					diskId: map[string]interface{}{
+						"id":   diskId,
+						"size": diskSize,
+					},
+				},
+			},
+		},
+	}
+
+	hardwareReq := func(s *sling.Sling) *sling.Sling {
+		return s.Put(vmUpdatePath(vm.Id)).BodyJSON(hw)
+	}
+
+	newVm := &VirtualMachine{}
+
+	log.WithFields(log.Fields{"vmId": vm.Id, "diskId": diskId, "diskSize": diskSize}).Infof("Adding disk")
+	_, err := RunSkytapRequest(client, false, newVm, hardwareReq)
+
+	if err != nil {
+		return newVm, err
+	}
+	if restartVm {
+		newVm, err = newVm.Start(client)
+	}
+
+	return newVm, err
+
+}
+
+/*
+ Add a network interface to VM
+*/
 func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, host, nic_type string, restartVm bool) (*NetworkInterface, error) {
 	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "nic_type": nic_type, "ip": ip, "hostname": host}).Infof("Adding interface")
 	if vm.Runstate != RunStateStop {
@@ -264,10 +323,9 @@ func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, ho
 	}
 
 	intr := &NetworkInterface{
-		// Ip:       ip,
-		// Hostname: host,
-		NicType: nic_type,
-		// NatAddresses: nil,
+		Ip:       ip,
+		Hostname: host,
+		NicType:  nic_type,
 	}
 
 	addReq := func(s *sling.Sling) *sling.Sling {
@@ -288,6 +346,9 @@ func (vm *VirtualMachine) AddNetworkInterface(client SkytapClient, envId, ip, ho
 	return intr, err
 }
 
+/*
+ Update network interface on VM
+*/
 func (vm *VirtualMachine) UpdateNetworkInterface(client SkytapClient, network_interface *NetworkInterface, envId, interfaceId string) error {
 	log.WithFields(log.Fields{"envId": envId, "vmId": vm.Id, "interfaceId": interfaceId}).Infof("Updating interface")
 
@@ -302,6 +363,9 @@ func (vm *VirtualMachine) UpdateNetworkInterface(client SkytapClient, network_in
 	return err
 }
 
+/*
+ Remove network interface from VM
+*/
 func (vm *VirtualMachine) RemoveNetworkInterface(client SkytapClient, envId, vmId, interfaceId string) error {
 	log.WithFields(log.Fields{"envId": envId, "vmId": vmId, "interfaceId": interfaceId}).Infof("Removing interface")
 	delReq := func(s *sling.Sling) *sling.Sling {
@@ -313,6 +377,9 @@ func (vm *VirtualMachine) RemoveNetworkInterface(client SkytapClient, envId, vmI
 	return err
 }
 
+/*
+ Rename network interface on VM
+*/
 func (vm *VirtualMachine) RenameNetworkInterface(client SkytapClient, envId string, interfaceId string, name string) (*NetworkInterface, error) {
 	nameReq := func(s *sling.Sling) *sling.Sling {
 		return s.Put(networkInterfacePath(envId, vm.Id, interfaceId)).BodyJSON(&NameUpdate{Hostname: name})
